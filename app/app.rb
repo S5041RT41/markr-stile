@@ -3,6 +3,9 @@
 
 require 'sinatra'
 require 'nokogiri'
+require 'redis'
+
+ENV['REDIS_URL'] ||= 'redis://localhost:6379'
 
 class Markr < Sinatra::Base
 
@@ -51,6 +54,10 @@ class Markr < Sinatra::Base
     response.headers['Access-Control-Allow-Headers'] =
       'X-Requested-With, X-HTTP-Method-Override, Content-Type, Cache-Control, Accept'
   end
+
+  # Redis configuration
+  RedisURI = URI.parse(ENV["REDIS_URL"])
+  REDIS = Redis.new(host: RedisURI.host, port: RedisURI.port, password: RedisURI.password)
 
   get "/results/:testid/aggregate" do |testid|
     content_type :json

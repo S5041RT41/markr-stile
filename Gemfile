@@ -5,6 +5,7 @@ source "https://rubygems.org"
 gem "sinatra"
 gem "rackup"
 gem "nokogiri"
+gem "redis"
 
 group :test, :development do
     gem 'rack-test'
