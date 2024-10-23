@@ -1,0 +1,29 @@
+version: '3'
+services:
+  app:
+    container_name: markr-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - redis
+    ports: 
+      - "9292:3000"
+    volumes:
+      - .:/app
+      - gem_cache:/usr/local/bundle/gems
+    env_file: ./config/.env
+    environment:
+      RAILS_ENV: development
+  redis:
+    container_name: markr-redis
+    image: redis:latest
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  gem_cache:
+  redis-data:
