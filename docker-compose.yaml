@@ -8,7 +8,7 @@ services:
     depends_on:
       - redis
     ports: 
-      - "9292:3000"
+      - "9292:9292"
     volumes:
       - .:/app
       - gem_cache:/usr/local/bundle/gems

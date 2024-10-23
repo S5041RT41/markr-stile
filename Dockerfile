@@ -16,6 +16,8 @@ RUN bundle install
 
 COPY . ./
 
+EXPOSE 9292
+
 # Set the entrypoint command
 CMD ["bundle", "exec", "rackup"]
 
