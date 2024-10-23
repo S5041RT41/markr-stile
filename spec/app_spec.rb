@@ -1,4 +1,4 @@
-require "./src/app"
+require "./app/app"
 require 'rack/test'
 
 ENV['RACK_ENV'] = 'test'

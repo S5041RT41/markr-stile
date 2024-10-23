@@ -3,7 +3,7 @@ require 'rack/protection'
 
 Bundler.require
 
-require './src/app.rb'
+require './app/app.rb'
 
 use Rack::Protection
 
