@@ -2,6 +2,7 @@ version: '3'
 services:
   app:
     container_name: markr-app
+    command: bundle exec rackup -p 9292 -o 0.0.0.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,8 +14,8 @@ services:
       - .:/app
       - gem_cache:/usr/local/bundle/gems
     env_file: ./config/.env
-    environment:
-      RAILS_ENV: development
+    restart: always
+
   redis:
     container_name: markr-redis
     image: redis:latest
@@ -23,6 +24,9 @@ services:
     ports:
       - "6379:6379"
     restart: always
+    environment:
+      REDIS_MAXMEMORY: 512mb
+      REDIS_APPENDONLY: "yes"
 
 volumes:
   gem_cache:
