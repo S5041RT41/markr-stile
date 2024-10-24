@@ -1,103 +1,116 @@
 # frozen_string_literal: true
 
-require './app/app'
-require 'rack/test'
+# spec/app_spec.rb
+require 'spec_helper'
 
-ENV['RACK_ENV'] = 'test'
+RSpec.describe 'Markr API', type: :request do
+  let(:app) { Markr.new }
+  let(:redis) { instance_double('Redis') }
 
-describe Markr do
-  include Rack::Test::Methods
+  before do
+    allow(Redis).to receive(:new).and_return(redis)
+  end
 
-  expected_not_found = {
-    code: 'RESOURCE_NOT_FOUND',
-    message: 'The requested resource was not found.',
-    suggestion: 'Please check user documentation for the correct path.'
-  }.to_json
-
-  {
-    code: 'SERVER_ERROR',
-    message: 'Current request cannot be processed.',
-    suggestion: 'Please check user documentation.'
-  }.to_json
-
-  expected_bad_request = {
-    code: 'BAD_REQUEST',
-    message: 'Current request does not satisfy request parameters.',
-    suggestion: 'Please check user documentation.'
-  }.to_json
-
-  expected_successful_request = {
-    code: 'SUCCESS',
-    message: 'Request has been submitted'
-  }.to_json
-
-  context 'get to /' do
-    let(:app) { Markr.new }
-
-    it 'returns 404' do
-      get '/'
-      expect(last_response.status).to eq 404
+  describe 'GET /results/:testid/aggregate' do
+    before do
+      allow(redis).to receive(:hvals).with('5678').and_return(
+        [
+          { 'obtained_marks' => 75, 'available_marks' => 100 }.to_json,
+          { 'obtained_marks' => 85, 'available_marks' => 100 }.to_json
+        ]
+      )
+      allow(redis).to receive(:hvals).with('invalid_test').and_return([])
     end
 
-    it 'returns not found error' do
-      get '/'
-      expect(last_response.body).to eq expected_not_found
+    context 'when there are students found' do
+      it 'returns aggregated results for a valid test ID' do
+        get '/results/5678/aggregate'
+
+        expect(last_response).to be_ok
+
+        json_response = JSON.parse(last_response.body)
+
+        expect(json_response).to include(
+          'count' => 2,
+          'mean' => 80.0,
+          'p25' => 75.0,
+          'p50' => 80.0,
+          'p75' => 85.0
+        )
+      end
+    end
+
+    context 'when no students found' do
+      it 'returns default values for an invalid test ID' do
+        get '/results/invalid_test/aggregate'
+        expect(last_response).to be_ok
+
+        json_response = JSON.parse(last_response.body)
+
+        expect(json_response).to include(
+          'count' => 0,
+          'mean' => 0.0,
+          'p25' => 0,
+          'p50' => 0,
+          'p75' => 0
+        )
+      end
     end
   end
 
-  context 'get /results' do
-    let(:app) { Markr.new }
-
-    it 'returns 404 without parameters' do
-      get '/results'
-      expect(last_response.status).to eq 404
+  describe 'POST /import' do
+    let(:valid_xml) do
+      <<~XML
+        <mcq-test-results>
+          <mcq-test-result scanned-on="2023-10-01">
+            <test-id>5678</test-id>
+            <student-number>student1</student-number>
+            <first-name>John</first-name>
+            <last-name>Doe</last-name>
+            <summary-marks obtained="80" available="100"/>
+          </mcq-test-result>
+        </mcq-test-results>
+      XML
     end
 
-    it 'returns not found error without parameters' do
-      get '/results'
-      expect(last_response.body).to eq expected_not_found
-    end
-  end
+    context 'with valid XML' do
+      it 'imports and responds with success' do
+        allow(redis).to receive(:set).with('5678-2023-10-01-raw', anything)
 
-  context 'get /results/:test-id/aggregate' do
-    let(:app) { Markr.new }
+        post '/import', valid_xml, { 'CONTENT_TYPE' => 'text/xml+markr' }
+        expect(last_response).to be_ok
 
-    it 'returns 200 with test id' do
-      get '/results/1234/aggregate'
-      expect(last_response.status).to eq 200
-    end
+        json_response = JSON.parse(last_response.body)
 
-    it 'returns json results' do
-      get '/results/122/aggregate'
-      expect(last_response.body).to eq ''
-    end
-  end
-
-  context 'post /import' do
-    let(:app) { Markr.new }
-
-    xml_body_pass = '<?xml version="1.0" encoding="UTF-8" ?><mcq-test-results><mcq-test-result scanned-on="2017-01-01T00:00:00Z"><first-name>Jimmmy</first-name><last-name>Student</last-name><student-number>99999999</student-number><test-id>78763</test-id><summary-marks available="10" obtained="2" /><answer question="1" marks-available="1" marks-awarded="1">A</answer><answer question="2" marks-available="1" marks-awarded="0">B</answer><answer question="4 marks-available="1" marks-awarded="1">AC</answer></mcq-test-result>...more mcq-test-result elements follow...</mcq-test-results>'
-
-    post_headers_pass = { 'CONTENT_TYPE' => 'text/xml+markr' }
-
-    it 'returns 400 without body' do
-      post '/import'
-      expect(last_response.status).to eq 400
+        expect(json_response).to include(
+          'code' => 'SUCCESS',
+          'message' => 'Request has been submitted.'
+        )
+      end
     end
 
-    it 'returns bad request without body' do
-      post '/import'
-      expect(last_response.body).to eq expected_bad_request
+    context 'with invalid XML' do
+      it 'returns 400 for invalid XML' do
+        post '/import', '<invalid_xml>', { 'CONTENT_TYPE' => 'text/xml+markr' }
+        expect(last_response.status).to eq(400)
+
+        json_response = JSON.parse(last_response.body)
+        expect(json_response).to include(
+          'code' => 'BAD_REQUEST'
+        )
+      end
     end
 
-    it 'returns 200 with correct body' do
-      post '/import', params: { body: xml_body_pass }, headers: post_headers_pass
-      expect(last_response.status).to eq 200
-    end
+    context 'with no data sent' do
+      it 'returns 400 if no data is sent' do
+        post '/import', '', { 'CONTENT_TYPE' => 'text/xml+markr' }
+        expect(last_response.status).to eq(400)
 
-    it 'returns successful request with correct body' do
-      post '/import', params: { body: xml_body_pass }, headers: post_headers_pass
-      expect(last_response.body).to eq expected_successful_request
+        json_response = JSON.parse(last_response.body)
+        expect(json_response).to include(
+          'code' => 'BAD_REQUEST'
+        )
+      end
     end
   end
 end

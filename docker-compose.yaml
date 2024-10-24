@@ -1,4 +1,5 @@
-version: '3'
+version: '3.8'
+
 services:
   app:
     container_name: markr-app
@@ -7,18 +8,18 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     ports: 
       - "9292:9292"
     volumes:
       - .:/app
       - gem_cache:/usr/local/bundle/gems
-    env_file: ./config/.env
     restart: always
 
   redis:
     container_name: markr-redis
-    image: redis:latest
+    image: redis:7.0
     volumes:
       - redis-data:/data
     ports:
@@ -27,6 +28,11 @@ services:
     environment:
       REDIS_MAXMEMORY: 512mb
       REDIS_APPENDONLY: "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   gem_cache:
