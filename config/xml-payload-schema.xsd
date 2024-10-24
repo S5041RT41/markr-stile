@@ -1,0 +1,40 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="mcq-test-results">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="mcq-test-result" maxOccurs="unbounded" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element type="xs:string" name="first-name"/>
+              <xs:element type="xs:string" name="last-name"/>
+              <xs:element type="xs:integer" name="student-number"/>
+              <xs:element type="xs:integer" name="test-id"/>
+              <xs:element name="answer" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute type="xs:byte" name="question" use="optional"/>
+                      <xs:attribute type="xs:integer" name="marks-available" use="optional"/>
+                      <xs:attribute type="xs:integer" name="marks-awarded" use="optional"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="summary-marks">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute type="xs:integer" name="available" use="required"/>
+                      <xs:attribute type="xs:integer" name="obtained" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute type="xs:dateTime" name="scanned-on" use="optional"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
